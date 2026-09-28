@@ -18,7 +18,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (BaseDocTemplate, CondPageBreak, Frame, Image, KeepTogether,
                                 NextPageTemplate, PageBreak, PageTemplate, Paragraph,
-                                Spacer, Table, TableStyle)
+                                Preformatted, Spacer, Table, TableStyle)
 from reportlab.platypus.tableofcontents import TableOfContents
 
 # ------------------------------------------------------------------ CAPA ----
@@ -45,7 +45,8 @@ SAIDA = os.path.join(AQUI, "Trabalho_SO_Processos_Sobrecarga.pdf")
 # ----------------------------------------------------------------- FONTES ---
 FONTES = r"C:\Windows\Fonts"
 for nome, arq in [("TNR", "times.ttf"), ("TNR-B", "timesbd.ttf"),
-                  ("TNR-I", "timesi.ttf"), ("TNR-BI", "timesbi.ttf")]:
+                  ("TNR-I", "timesi.ttf"), ("TNR-BI", "timesbi.ttf"),
+                  ("COUR", "cour.ttf")]:
     pdfmetrics.registerFont(TTFont(nome, os.path.join(FONTES, arq)))
 pdfmetrics.registerFontFamily("TNR", normal="TNR", bold="TNR-B", italic="TNR-I",
                               boldItalic="TNR-BI")
@@ -80,6 +81,7 @@ CELULA_P = ParagraphStyle("celulap", parent=CELULA, fontSize=8.5, leading=10)
 CELULA_C = ParagraphStyle("celulac", parent=CELULA, alignment=TA_CENTER)
 REFERENCIA = ParagraphStyle("ref", fontName="TNR", fontSize=12, leading=14,
                             alignment=TA_LEFT, spaceAfter=14)
+CODIGO = ParagraphStyle("codigo", fontName="COUR", fontSize=9, leading=11.5)
 NATUREZA = ParagraphStyle("natureza", fontName="TNR", fontSize=11, leading=13,
                           alignment=TA_JUSTIFY, leftIndent=8 * cm)
 
@@ -163,6 +165,19 @@ def figura(numero, titulo, arquivo, largura=0.92):
     img.drawWidth, img.drawHeight = img.imageWidth * escala, img.imageHeight * escala
     return [KeepTogether([Paragraph(f"Figura {numero} – {titulo}", LEGENDA), img,
                           Paragraph(FONTE_AUTORES, FONTE)])]
+
+
+def codigo_fonte(numero, titulo, texto):
+    """Listagem de código: título acima e fonte abaixo, como as demais ilustrações."""
+    caixa = Table([[Preformatted(texto.strip("\n"), CODIGO)]], colWidths=[UTIL])
+    caixa.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f2f2f2")),
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#888888")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]))
+    return [KeepTogether([Paragraph(f"Código {numero} – {titulo}", LEGENDA), caixa,
+                          Paragraph("Fonte: elaborado pelos autores (2026), arquivo "
+                                    "<i>codigo/servidores.py</i>.", FONTE)])]
 
 
 def ficha(numero, referencia_curta, campos):
@@ -845,6 +860,70 @@ def demonstracao():
         "<b>Ambiente:</b> AMD Ryzen 7 5700X (8 núcleos e 16 threads), 32 GB de RAM, "
         "Windows 11 e Python 3.14.",
     ])
+
+    s += [p("Os Códigos 1 a 4 mostram os trechos do arquivo <i>servidores.py</i> que "
+            "diferenciam os modelos. As listagens foram simplificadas, sem as mensagens e "
+            "o tratamento de erros. O Código 1 é o atendimento bloqueante, compartilhado "
+            "pelos modelos de processos e de threads.")]
+    s += codigo_fonte(1, "Atendimento bloqueante de uma conexão (processos e threads)", r"""
+def _atender(conn):
+    buffer = b""
+    for i in range(REQUISICOES_POR_CONEXAO):
+        while b"\r\n\r\n" not in buffer:        # lê a requisição HTTP
+            dados = conn.recv(4096)                # bloqueia até chegar dado
+            if not dados:
+                return
+            buffer += dados
+        _, buffer = buffer.split(b"\r\n\r\n", 1)
+        time.sleep(TRABALHO_IO_MS / 1000)   # E/S: o SO tira a tarefa da CPU
+        gastar_cpu(TRABALHO_CPU_MS)         # processamento
+        ultima = i == REQUISICOES_POR_CONEXAO - 1
+        conn.sendall(resposta(ultima))
+""")
+    s += codigo_fonte(2, "Modelo de processos: conjunto fixo de processos", r"""
+def laco_do_processo(sock):
+    # Cada processo filho bloqueia em accept() no MESMO socket de escuta;
+    # o kernel entrega cada nova conexão a um dos processos livres.
+    while True:
+        conn, _ = sock.accept()
+        atender_conexao_bloqueante(conn)    # uma conexão por vez
+
+def servidor_processos(porta):
+    sock = criar_socket(porta)
+    filhos = [multiprocessing.Process(target=laco_do_processo, args=(sock,))
+              for _ in range(NUM_PROCESSOS)]  # 8 processos
+    for p in filhos:
+        p.start()
+""")
+    s += codigo_fonte(3, "Modelo de threads: uma thread do SO por conexão", r"""
+def servidor_threads(porta):
+    sock = criar_socket(porta)
+    while True:
+        conn, _ = sock.accept()
+        threading.Thread(target=atender_conexao_bloqueante,
+                         args=(conn,)).start()    # nova thread a cada conexão
+""")
+    s += codigo_fonte(4, "Modelo de eventos: laço de eventos único (asyncio)", r"""
+async def atender_conexao_async(reader, writer):
+    for i in range(REQUISICOES_POR_CONEXAO):
+        await reader.readuntil(b"\r\n\r\n")
+        await asyncio.sleep(TRABALHO_IO_MS / 1000)  # E/S: o laço atende outros
+        gastar_cpu(TRABALHO_CPU_MS)                  # CPU: o laço inteiro para!
+        ultima = i == REQUISICOES_POR_CONEXAO - 1
+        writer.write(resposta(ultima))
+        await writer.drain()
+
+async def servidor_eventos(porta):
+    servidor = await asyncio.start_server(atender_conexao_async,
+                                          "127.0.0.1", porta)
+    await servidor.serve_forever()
+""")
+    s += [p("A diferença essencial está na espera de E/S. Nos Códigos 1 a 3, "
+            "<i>time.sleep()</i> e <i>recv()</i> bloqueiam o processo ou a thread, e o "
+            "escalonador do SO coloca outra tarefa na CPU. No Código 4, o "
+            "<i>await</i> devolve o controle ao laço de eventos, que atende outras "
+            "conexões na mesma thread. Porém o trecho de CPU (<i>gastar_cpu</i>) não tem "
+            "<i>await</i>, e enquanto ele executa nenhuma outra conexão é atendida.")]
     s += subsecao("4.2 Resultados")
     s += [p("A Tabela 1 resume os resultados para 10, 100 e 500 clientes. As Figuras 1 a 4 "
             "mostram todos os níveis.")]
