@@ -1,0 +1,20 @@
+{
+  "sistema": "Linux",
+  "kernel": "5.10.255-273-275.1133.amzn2.x86_64.microvm",
+  "versao_kernel": "#1 SMP Wed Nov 11 00:46:29 UTC 2026",
+  "arquitetura": "x86_64",
+  "distribuicao": "Amazon Linux 2023.12.20261102",
+  "cpu_modelo": "Intel(R) Xeon(R) Processor @ 2.50GHz",
+  "cpus_logicas": 2,
+  "cpus_disponiveis": 2,
+  "memoria_total": "2333240 kB",
+  "python": "3.12.16",
+  "pid_funcao": 8,
+  "vercel": true,
+  "regiao": "iad1",
+  "binarios": {
+    "c": true,
+    "medir": true,
+    "rust": true
+  }
+}

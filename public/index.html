@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C, Rust e Python no kernel</title>
+<meta name="description" content="Experimento de Sistemas Operacionais: o mesmo algoritmo em C, Rust e Python, executado como processo filho e medido pelo kernel Linux.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+<header class="topo">
+  <div class="largura">
+    <h1>C, Rust e Python<br><span>vistos pelo kernel</span></h1>
+    <p class="lead">O mesmo algoritmo nas três linguagens, cada um rodando como um processo filho no Linux do servidor.
+      Quando o processo termina, o kernel devolve pelo <code>wait4()</code> quanto tempo, CPU, memória e trocas de contexto ele gastou.</p>
+    <dl class="ambiente" id="ambiente" aria-live="polite">
+      <div><dt>Kernel</dt><dd>carregando…</dd></div>
+    </dl>
+  </div>
+</header>
+
+<main class="largura">
+  <section class="painel" aria-labelledby="t-config">
+    <h2 id="t-config">Escolha o teste</h2>
+    <div class="testes" role="radiogroup" aria-label="Teste" id="testes"></div>
+
+    <div class="ajustes">
+      <label class="campo">
+        <span>Tamanho <output id="tamanho-valor"></output></span>
+        <input type="range" id="tamanho" min="0" max="100" step="1">
+      </label>
+      <label class="campo" id="campo-threads">
+        <span>Threads <output id="threads-valor">4</output></span>
+        <input type="range" id="threads" min="1" max="16" step="1" value="4">
+      </label>
+      <label class="campo">
+        <span>Repetições <output id="rep-valor">3</output></span>
+        <input type="range" id="repeticoes" min="1" max="5" step="1" value="3">
+      </label>
+      <button id="executar" class="executar" type="button">Executar nas três linguagens</button>
+    </div>
+  </section>
+
+  <section class="corrida" aria-labelledby="t-tempo">
+    <div class="corrida-cab">
+      <h2 id="t-tempo">Tempo total do processo</h2>
+      <ul class="legenda">
+        <li><i class="seg usr"></i>CPU em modo usuário</li>
+        <li><i class="seg sys"></i>CPU em modo kernel (syscalls, page faults)</li>
+        <li><i class="seg resto"></i>Espera e inicialização</li>
+      </ul>
+    </div>
+    <div id="raias" class="raias"></div>
+    <p id="conferencia" class="conferencia" hidden></p>
+  </section>
+
+  <section aria-labelledby="t-metricas">
+    <h2 id="t-metricas">O que o kernel contou (mediana)</h2>
+    <div class="tabela-rolagem">
+      <table id="tabela">
+        <thead><tr><th scope="col">Métrica</th><th scope="col" class="c">C</th><th scope="col" class="rust">Rust</th><th scope="col" class="python">Python</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="nota">Valores em destaque são os menores da linha. Memória é o pico de memória residente (<code>ru_maxrss</code>); em processos muito pequenos ele pode aparecer como 0, porque o kernel atualiza esse contador em lotes.</p>
+  </section>
+
+  <section class="duas" aria-label="Explicação e registro">
+    <div>
+      <h2>O que observar</h2>
+      <div id="explicacao" class="explicacao"></div>
+    </div>
+    <div>
+      <h2>Registro da execução</h2>
+      <pre id="log" class="terminal" aria-live="polite" tabindex="0">$ aguardando execução</pre>
+    </div>
+  </section>
+</main>
+
+<footer class="largura rodape">
+  Trabalho de Sistemas Operacionais, Engenharia de Software, FUCAPI, 2026.
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/benchmark.py": {
+      "includeFiles": "{bin/**,benchmarks/python/**}",
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/ambiente.py": {
+      "includeFiles": "bin/**",
+      "maxDuration": 10
+    }
+  }
+}

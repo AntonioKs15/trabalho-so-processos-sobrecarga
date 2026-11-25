@@ -1,0 +1,8 @@
+guia/
+resultados/
+scripts/
+benchmarks/c/
+benchmarks/rust/
+*.pdf
+gerar_pdf.py
+build.sh
